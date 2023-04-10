@@ -1,0 +1,33 @@
+先cd test_presure/webbench_1.5里面
+然后输入make，编译webbench
+ls 会出现一个 webbench的可执行文件
+
+输入命令：
+./webbench -c user_count -t connect_time url
+即可开始测试。
+原理：父进程fork出user_count个子进程，这些子进程都访问url，并且持续连接connect_time时间，
+最后子进程结束都会向父进程汇报，父进程总计。
+
+LT模式：
+#####################################################################################
+ ~/p/c/W/t/webbench-1.5  ./webbench -c 10000 -t 5 http://localhost:9999/index.html
+Webbench - Simple Web Benchmark 1.5
+Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
+
+Benchmarking: GET http://localhost:9999/index.html
+10000 clients, running 5 sec.
+
+Speed=177408 pages/min, 470067 bytes/sec.
+Requests: 14784 susceed, 0 failed.
+
+ET模式：
+#####################################################################################
+ ~/p/c/W/t/webbench-1.5  ./webbench -c 10000 -t 5 http://localhost:9999/index.html
+Webbench - Simple Web Benchmark 1.5
+Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.
+
+Benchmarking: GET http://localhost:9999/index.html
+10000 clients, running 5 sec.
+
+Speed=187836 pages/min, 497797 bytes/sec.
+Requests: 15653 susceed, 0 failed.

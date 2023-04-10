@@ -1,0 +1,50 @@
+# 语言: None, Cpp, Java, JavaScript, ObjC, Proto, TableGen, TextProto
+Language: Cpp
+
+# 基于标准：Google, LLVM, Microsoft
+BasedOnStyle: Google
+
+# 访问说明符(public、private等)的偏移
+AccessModifierOffset: -4
+
+# 对齐连续的尾随的注释
+AlignTrailingComments: true
+
+# 是否允许clang-format尝试重新粘合注释(true/false), 不建议使用
+ReflowComments:  false
+
+# 缩进宽度
+IndentWidth: 4
+
+# Tab宽度, 建议4
+TabWidth: 4
+
+# Tab使用, 没有必要使用, 直接Never
+UseTab: Never
+
+# 空行保持, 建议为1
+MaxEmptyLinesToKeep: 1
+
+# C++标准, Latest即可
+Standard: Latest
+
+# 运行短的块放在同一行，主要是指控制语句：while循环、for循环
+AllowShortBlocksOnASingleLine: true
+
+# 允许短的if语句保持在同一行
+AllowShortIfStatementsOnASingleLine: false
+
+# 允许短的case标签放在同一行
+AllowShortCaseLabelsOnASingleLine: true
+
+# 允许短的函数放在同一行: None, InlineOnly(定义在类中), Empty(空函数), Inline(定义在类中 || 空函数), All
+AllowShortFunctionsOnASingleLine: Empty
+
+# tab宽度
+TabWidth:	4
+
+# 使用tab字符: Never, ForIndentation, ForContinuationAndIndentation, Always
+UseTab:	Never
+
+# 每行最多多少列，大于这个值会自动换行，如果为0则代表无限制。
+ColumnLimit: 100
