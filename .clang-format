@@ -29,7 +29,7 @@ MaxEmptyLinesToKeep: 1
 Standard: Latest
 
 # 运行短的块放在同一行，主要是指控制语句：while循环、for循环
-AllowShortBlocksOnASingleLine: true
+AllowShortBlocksOnASingleLine: false
 
 # 允许短的if语句保持在同一行
 AllowShortIfStatementsOnASingleLine: false

@@ -1,6 +1,4 @@
 /build
 /.vscode
 /.cache
-/my_heap.cpp
-/my_heap.h
 /mytimer.h

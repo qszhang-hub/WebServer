@@ -56,10 +56,11 @@ void modfd(int epollfd, int fd, int ev, int et) {
 }
 
 // 初始化新建立的连接
-void http_conn::init(int sockfd, const sockaddr_in &addr, bool et) {
+void http_conn::init(int sockfd, const sockaddr_in &addr, bool et, util_timer *timer) {
     m_sockfd = sockfd;
     m_address = addr;
     m_et = et;
+    m_timer = timer;
 
     // 设置端口复用
     int reuse = 1;

@@ -8,15 +8,6 @@
 #include "http_conn.h"
 #include "log.h"
 
-class util_timer;  // 定时器类声明
-
-// 用户数据结构
-struct client_data {
-    sockaddr_in address;  // 客户端socket地址
-    int sockfd;           // socket文件描述符
-    util_timer *timer;    // 定时器
-};
-
 // 定时器类
 class util_timer {
 public:
@@ -24,11 +15,8 @@ public:
 
 public:
     time_t expire;  // 任务超时时间，这里使用绝对时间
-    // void (*callback)(client_data *); //
     // 任务回调函数，回调函数处理的客户数据，由定时器的执行者传递给回调函数
-    void (*callback)(
-        http_conn *);  // 任务回调函数，回调函数处理的客户数据，由定时器的执行者传递给回调函数
-    // client_data *user_data;
+    void (*callback)(http_conn *);
     http_conn *user_data;
     util_timer *prev;  // 指向前一个定时器
     util_timer *next;  // 指向后一个定时器

@@ -18,7 +18,7 @@
 
 #include "locker.h"
 #include "log.h"
-
+class util_timer;  // 定时器类声明
 class http_conn {
 public:
     static int m_epollfd;     // 所有socket上的事件都被注册到同一个epoll中
@@ -27,8 +27,9 @@ public:
     static const int WRITE_BUFFER_SIZE = 2048;  // 写缓冲区大小
     static const int FILENAME_LEN = 200;        // 文件名的最大长度
 
-    bool m_et;     // 是否开启ET模式
-    int m_sockfd;  // 该http连接的socket
+    bool m_et;            // 是否开启ET模式
+    int m_sockfd;         // 该http连接的socket
+    util_timer *m_timer;  // 定时器
 
     // 网站根目录
     const char *doc_root = "/home/echo/projects/cpp/WebServer/resources";
@@ -85,12 +86,13 @@ public:
     http_conn(){};
     ~http_conn(){};
 
-    void init(int sockfd, const sockaddr_in &addr, bool et);  // 初始化新建立的连接
-    void close_conn();                                        // 关闭连接
-    bool read();                                              // 一次性读完（非阻塞）
-    bool write();                                             // 一次性写完（非阻塞）
-    void process();                                           // 处理客户端请求
-    sockaddr_in *get_address() {                              // 获取IP地址
+    // 初始化新建立的连接
+    void init(int sockfd, const sockaddr_in &addr, bool et, util_timer *timer = nullptr);
+    void close_conn();            // 关闭连接
+    bool read();                  // 一次性读完（非阻塞）
+    bool write();                 // 一次性写完（非阻塞）
+    void process();               // 处理客户端请求
+    sockaddr_in *get_address() {  // 获取IP地址
         return &m_address;
     }
 

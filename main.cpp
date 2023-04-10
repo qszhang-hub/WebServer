@@ -59,7 +59,7 @@ void timer_handler() {
 }
 
 // 定时器回调函数，该函数就是httpconn类中的close_conn()函数
-void close_conn_call(http_conn *user) {
+void time_out_callback(http_conn *user) {
     LOG_INFO("time out. close fd: %d", user->m_sockfd);
     Log::get_instance()->flush();
     user->close_conn();
@@ -174,10 +174,6 @@ int main(int argc, char *argv[]) {
 
     bool stop_server = false;  // 初始化不关闭服务器
 
-    // client_data记录连接进来的客户端的地址和socket信息
-    // 每当客户端进行了读写操作时，就将其定时器重调至3个单位（15s）
-    client_data *users_timer = new client_data[MAX_FD];
-
     bool timeout = false;  // 初始化还未到检测非活跃用户时间
     alarm(TIMESLOT);       // 设置闹钟，每隔5s发送SIGALRM信号
 
@@ -215,19 +211,16 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     // 将新客户数据初始化，放入数组中
-                    users[connfd].init(connfd, client_addr, et);
-
-                    // 初始化client_data数据
-                    // 创建定时器，设置回调函数和超时时间，绑定用户数据，将定时器添加到链表中
-                    users_timer[connfd].address = client_addr;
-                    users_timer[connfd].sockfd = connfd;
                     util_timer *timer = new util_timer;
                     timer->user_data = &users[connfd];
-                    timer->callback = close_conn_call;
+                    timer->callback = time_out_callback;
                     time_t cur = time(NULL);
                     // 初始化超时时间为当前时间后移15s
                     timer->expire = cur + 3 * TIMESLOT;
-                    users_timer[connfd].timer = timer;
+
+                    users[connfd].init(connfd, client_addr, et, timer);
+
+                    // users[connfd].m_timer = timer;
                     timer_lst.add_timer(timer);
                 }
                 continue;
@@ -235,7 +228,7 @@ int main(int argc, char *argv[]) {
             // 对方异常断开或错误事件
             // 服务器端关闭连接，移除对应的定时器
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
-                util_timer *timer = users_timer[sockfd].timer;
+                util_timer *timer = users[sockfd].m_timer;
                 timer->callback(&users[sockfd]);
                 // timer还存在，就删除timer
                 if (timer) {
@@ -264,7 +257,7 @@ int main(int argc, char *argv[]) {
                 }
                 // 否则是正常的客户端请求
                 else {
-                    util_timer *timer = users_timer[sockfd].timer;
+                    util_timer *timer = users[sockfd].m_timer;
                     // 读取到完整请求
                     if (users[sockfd].read()) {
                         LOG_INFO("deal with the client(%s)",
@@ -295,7 +288,7 @@ int main(int argc, char *argv[]) {
             }
             // 监听到写事件发生，这个写入事件是由工作线程处理完之后反馈给我们的
             else if (events[i].events & EPOLLOUT) {
-                util_timer *timer = users_timer[sockfd].timer;
+                util_timer *timer = users[sockfd].m_timer;
                 // 成功写入
                 if (users[sockfd].write()) {
                     LOG_INFO("send data to the client(%s)",
@@ -331,7 +324,6 @@ int main(int argc, char *argv[]) {
     close(pipefd[1]);
     close(pipefd[0]);
     delete[] users;
-    delete[] users_timer;
     delete pool;
     return 0;
 }
