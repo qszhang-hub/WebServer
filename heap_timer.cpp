@@ -1,132 +1,188 @@
 #include "heap_timer.h"
 
-void HeapTimer::siftup_(size_t i) {
-    assert(i >= 0 && i < heap_.size());
-    size_t j = (i - 1) / 2;
-    while (j >= 0) {
-        if (heap_[j] < heap_[i]) {
+TimeHeap::TimeHeap(int capacity) : m_capacity(capacity), m_size(0) {
+    m_timers = new HeapTimer*[m_capacity];
+    if (m_timers == nullptr) {
+        throw std::exception();
+    }
+
+    for (int i = 0; i < m_capacity; i++) {
+        m_timers[i] = nullptr;
+    }
+}
+
+TimeHeap::TimeHeap(HeapTimer** timers, int size, int capacity)
+    : m_size(size), m_capacity(capacity) {
+    // 参数不对
+    if (m_capacity < size) {
+        throw std::exception();
+    }
+
+    m_timers = new HeapTimer*[m_capacity];
+
+    // 内存不足
+    if (m_timers == nullptr) {
+        throw std::exception();
+    }
+
+    // 拷贝
+    for (int i = 0; i < size; i++) {
+        m_timers[i] = timers[i];
+    }
+
+    // 从最后一个节点的父节点开始遍历，下沉操作
+    for (int i = size / 2 - 1; i >= 0; i--) {
+        shift_down(i);
+    }
+}
+
+TimeHeap::~TimeHeap() {
+    // for (int i = 0; i < m_size; i++) {
+    //     if (!m_timers[i]) {
+    //         delete m_timers[i];
+    //     }
+    // }
+    if (m_timers != nullptr) {
+        delete[] m_timers;
+    }
+}
+
+// 对堆结点进行下滤，确保第k个节点满足最小堆性质
+void TimeHeap::shift_down(int k) {
+    HeapTimer* timer = m_timers[k];
+    int i = k * 2 + 1;
+    while (i < m_size) {
+        // 使用较小的子节点
+        if (i < m_size - 1 && m_timers[i]->expire > m_timers[i + 1]->expire) {
+            ++i;
+        }
+        // 子树的根节点值大于较小值，根节点下沉
+        if (timer->expire > m_timers[i]->expire) {
+            m_timers[i]->index = k;
+            m_timers[k] = m_timers[i];
+            k = i;
+        } else {
+            // tmp节点的值最小，符合
             break;
         }
-        SwapNode_(i, j);
-        i = j;
-        j = (i - 1) / 2;
     }
+    // 将最初的节点放到合适的位置
+    m_timers[k] = timer;
+    timer->index = k;
 }
 
-void HeapTimer::SwapNode_(size_t i, size_t j) {
-    assert(i >= 0 && i < heap_.size());
-    assert(j >= 0 && j < heap_.size());
-    std::swap(heap_[i], heap_[j]);
-    ref_[heap_[i].id] = i;
-    ref_[heap_[j].id] = j;
-}
-
-bool HeapTimer::siftdown_(size_t index, size_t n) {
-    assert(index >= 0 && index < heap_.size());
-    assert(n >= 0 && n <= heap_.size());
-    size_t i = index;
-    size_t j = i * 2 + 1;
-    while (j < n) {
-        if (j + 1 < n && heap_[j + 1] < heap_[j])
-            j++;
-        if (heap_[i] < heap_[j])
-            break;
-        SwapNode_(i, j);
-        i = j;
-        j = i * 2 + 1;
-    }
-    return i > index;
-}
-
-void HeapTimer::add(int id, int timeout, const TimeoutCallBack& cb) {
-    assert(id >= 0);
-    size_t i;
-    if (ref_.count(id) == 0) {
-        /* 新节点：堆尾插入，调整堆 */
-        i = heap_.size();  // 节点编号
-        ref_[id] = i;      // 文件描述符和节点编号之间映射关系 id - i(key - value)
-        heap_.push_back({id, Clock::now() + MS(timeout), cb});
-        siftup_(i);  // 向上调整，跟父亲比较
-    } else {
-        /* 已有结点：调整堆 */
-        i = ref_[id];
-        heap_[i].expires = Clock::now() + MS(timeout);
-        heap_[i].cb = cb;
-        if (!siftdown_(i, heap_.size())) {
-            siftup_(i);
-        }
-    }
-}
-
-void HeapTimer::doWork(int id) {
-    /* 删除指定id结点，并触发回调函数 */
-    if (heap_.empty() || ref_.count(id) == 0) {
+// 添加定时器，先放在数组末尾，在进行上滤使其满足最小堆
+void TimeHeap::add_timer(HeapTimer* timer) {
+    if (timer == nullptr) {
         return;
     }
-    size_t i = ref_[id];
-    TimerNode node = heap_[i];
-    node.cb();
-    del_(i);
-}
 
-void HeapTimer::del_(size_t index) {
-    /* 删除指定位置的结点 */
-    assert(!heap_.empty() && index >= 0 && index < heap_.size());
-    /* 将要删除的结点换到队尾，然后调整堆 */
-    size_t i = index;
-    size_t n = heap_.size() - 1;
-    assert(i <= n);
-    if (i < n) {
-        SwapNode_(i, n);
-        if (!siftdown_(i, n)) {
-            siftup_(i);
-        }
+    // 空间不足，将堆空间扩大为原来的2倍
+    if (m_size >= m_capacity) {
+        reallocate();
     }
-    /* 队尾元素删除 */
-    ref_.erase(heap_.back().id);
-    heap_.pop_back();
-}
 
-void HeapTimer::adjust(int id, int timeout) {
-    /* 调整指定id的结点 */
-    assert(!heap_.empty() && ref_.count(id) > 0);
-    heap_[ref_[id]].expires = Clock::now() + MS(timeout);
-    siftdown_(ref_[id], heap_.size());
-}
+    // 获取新节点下标
+    int i = m_size;
+    ++m_size;
 
-void HeapTimer::tick() {
-    /* 清除超时结点 */
-    if (heap_.empty()) {
+    // 父节点
+    int parent = (i - 1) / 2;
+
+    // 父节点就是它自己，说明它是第一个元素，直接放入
+    if (i == parent) {
+        m_timers[i] = timer;
+        timer->index = i;
         return;
     }
-    while (!heap_.empty()) {
-        TimerNode node = heap_.front();
-        if (std::chrono::duration_cast<MS>(node.expires - Clock::now()).count() > 0) {
+
+    // 由于新结点在最后，因此将其进行上滤，以符合最小堆
+    while (parent >= 0) {
+        if (m_timers[parent]->expire > timer->expire) {
+            m_timers[parent]->index = i;
+            m_timers[i] = m_timers[parent];
+            i = parent;
+        } else {
             break;
         }
-        node.cb();
-        pop();
+    }
+    m_timers[i] = timer;
+    timer->index = i;
+}
+
+// 删除指定定时器
+void TimeHeap::del_timer(HeapTimer* timer) {
+    if (timer == nullptr) {
+        return;
+    }
+    // 仅仅将回调函数置空，虽然节省删除的开销，但会造成数组膨胀
+    timer->callback = nullptr;
+}
+
+// 调整指定定时器在堆中的位置
+void TimeHeap::adjust_timer(HeapTimer* timer) {
+    if (timer == nullptr) {
+        return;
+    }
+
+    // 从timer所在位置进行一次下沉操作即可
+    shift_down(timer->index);
+    timer->callback = nullptr;
+}
+
+// 删除堆顶定时器
+void TimeHeap::pop_timer() {
+    if (m_size <= 0) {
+        return;
+    }
+    if (m_timers[0] != nullptr) {
+        delete m_timers[0];
+        // 将最后一个定时器赋给堆顶
+        --m_size;
+        m_timers[m_size]->index = 0;
+        m_timers[0] = m_timers[m_size];
+
+        // 对新的根节点进行下滤，保证最小堆
+        shift_down(0);
     }
 }
 
-void HeapTimer::pop() {
-    assert(!heap_.empty());
-    del_(0);
-}
+// 从时间堆中寻找到时间的结点
+void TimeHeap::tick() {
+    HeapTimer* timer = m_timers[0];
+    time_t cur = time(NULL);
 
-void HeapTimer::clear() {
-    ref_.clear();
-    heap_.clear();
-}
-
-int HeapTimer::GetNextTick() {
-    tick();
-    size_t res = -1;
-    if (!heap_.empty()) {
-        res = std::chrono::duration_cast<MS>(heap_.front().expires - Clock::now()).count();
-        if (res < 0) {
-            res = 0;
+    // 不断判断堆顶是否时间已到
+    while (m_size > 0) {
+        if (timer == nullptr) {
+            break;
         }
+        // 未到时间，则停止
+        if (timer->expire > cur) {
+            break;
+        }
+        if (m_timers[0]->callback != nullptr) {
+            m_timers[0]->callback(m_timers[0]->user_data);
+        }
+        // 无论是否调用了callback，都会在调用结束后清除堆顶计时器
+        pop_timer();
+        timer = m_timers[0];
     }
-    return res;
+}
+
+// 空间不足时，将空间扩大为原来的2倍
+void TimeHeap::reallocate() {
+    m_capacity *= 2;
+    HeapTimer** timers = new HeapTimer*[m_capacity];
+    // 内存不够分配了，抛出异常
+    if (timers == nullptr) {
+        throw std::exception();
+    }
+    for (int i = 0; i < m_size; i++) {
+        timers[i] = m_timers[i];
+    }
+    if (m_timers != nullptr) {
+        delete[] m_timers;
+    }
+    m_timers = timers;
 }

@@ -1,67 +1,42 @@
-#ifndef HEAP_TIMER_H
-#define HEAP_TIMER_H
+#ifndef _TIMEHEAP_H_
+#define _TIMEHEAP_H_
 
-#include <arpa/inet.h>
-#include <assert.h>
+#include <netinet/in.h>
 #include <time.h>
 
-#include <algorithm>
-#include <chrono>
-#include <functional>
-#include <queue>
-#include <unordered_map>
+#include "http_conn.h"
 
-#include "log.h"
-
-typedef std::function<void()> TimeoutCallBack;
-typedef std::chrono::high_resolution_clock Clock;
-typedef std::chrono::milliseconds MS;
-typedef Clock::time_point TimeStamp;
-
-struct TimerNode {
-    int id;
-    TimeStamp expires;
-    TimeoutCallBack cb;
-    bool operator<(const TimerNode& t) {  // 重载了<运算符，实现对时间的比较
-        return expires < t.expires;       // 小根堆
-    }
-};
+// 定时器类
 class HeapTimer {
 public:
-    HeapTimer() {
-        heap_.reserve(64);
-    }  // 默认堆大小是64
+    time_t expire;         // 定时器生效的绝对时间
+    http_conn* user_data;  // 客户信息
+    int index;             // 对应于堆数组中的下标
 
-    ~HeapTimer() {
-        clear();
-    }
-
-    void adjust(int id, int newExpires);
-
-    void add(int id, int timeOut, const TimeoutCallBack& cb);
-
-    void doWork(int id);
-
-    void clear();
-
-    void tick();
-
-    void pop();
-
-    int GetNextTick();
-
+public:
+    HeapTimer() {}
+    void (*callback)(http_conn*);  // 定时器的回调函数
+};
+// 仿照vector扩容机制实现堆数组
+class TimeHeap {
 private:
-    void del_(size_t i);
+    HeapTimer** m_timers;  // 堆数组，每个元素都是一个计时器指针
+    int m_capacity;        // 堆数组容量
+    int m_size;            // 堆数组当前包含元素个数
+public:
+    TimeHeap(int capacity);  // 构造函数1，初始化大小为cap的空数组
+    TimeHeap(HeapTimer** timers, int size, int capacity);  // 构造函数2，根据已有数组初始化堆
+    ~TimeHeap();
 
-    void siftup_(size_t i);
-
-    bool siftdown_(size_t index, size_t n);
-
-    void SwapNode_(size_t i, size_t j);
-
-    std::vector<TimerNode> heap_;  // 用数组vector去模拟堆
-
-    std::unordered_map<int, size_t> ref_;
+public:
+    void shift_down(int hole);  // 对堆结点进行下虑
+    void add_timer(HeapTimer* timer);
+    void del_timer(HeapTimer* timer);
+    void adjust_timer(HeapTimer* timer);
+    void pop_timer();
+    void tick();
+    // 当堆数组容量不够时，对其进行扩容
+    void reallocate();
 };
 
 #endif
