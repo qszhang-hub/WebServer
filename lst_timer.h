@@ -6,7 +6,6 @@
 #include <time.h>
 
 #include "http_conn.h"
-#include "log.h"
 
 // 定时器类
 class util_timer {
@@ -124,8 +123,6 @@ public:
             return;
         }
         // printf("timer tick!\n");
-        LOG_INFO("%s", "timer tick");
-        Log::get_instance()->flush();
         time_t deadline = time(NULL);  // 获取当前系统时间
         util_timer *cur = head;
         // 从头节点开始依次处理每个定时器，直到遇到一个尚未到期的定时器

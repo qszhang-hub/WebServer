@@ -18,6 +18,10 @@
 #include "lst_timer.h"
 #include "threadpool.h"
 
+// 日志系统设置，同步或异步
+#define ASYNC_LOG
+#define SYNC_LOG
+
 #define MAX_FD 65535         // 最大的文件描述符个数
 #define MAX_EVENT_NUM 10000  // 一次监听最大的事件数量
 #define TIMESLOT 5           // 定时间隔5s
@@ -52,6 +56,9 @@ void addsig(int sig, void(handler)(int)) {
 // 定时处理任务，实际上就是调用tick()函数
 void timer_handler() {
     // tick函数从链表中找到那些到期的timer，并进行callback处理
+    LOG_INFO("%s", "timer tick");
+    Log::get_instance()->flush();
+
     timer_lst.tick();
     // 因为一次 alarm 调用只会引起一次SIGALARM
     // 信号，所以我们要重新定时，以不断触发 SIGALARM信号。
@@ -68,24 +75,29 @@ void time_out_callback(http_conn *user) {
 int main(int argc, char *argv[]) {
     // basename() 将文件路径中所有的前缀目录都删去，只保留最后的文件名
     // 如：/home/root/hello.txt  ->  hello.txt
-    if (argc <= 2) {
-        std::cout << "请按照如下格式运行：" << basename(argv[0]) << " port_number ET\n";
+    if (argc <= 3) {
+        std::cout << "请按照如下格式运行：" << basename(argv[0]) << " port_number ET Log\n";
         std::cout << "其中ET代表是否开启EPOLL的边沿触发，可选1(开启)或0(不开启)\n";
+        std::cout << "其中Log代表是否开启异步日志系统，可选1(异步日志)或0(同步日志)\n";
         exit(-1);
     }
-    // 初始化日志
-    // 由于CMake项目将server生成在build目录下，如果直接写日志会将日志写到build下
-    // 这里手动将日志生成在main函数同级目录下
-    Log::get_instance()->init("Server.log", 2000, 800000, 0);  // 同步日志模型
-    // Log::get_instance()->init("../Server.log", 2000, 800000, 10); // 异步日志模型
-
     // 获取端口号
     int port = atoi(argv[1]);
 
     // 获取EPOLL模式
     bool et = atoi(argv[2]) ? true : false;
 
-    cout << "端口号: " << port << ", EPOLL模式: " << (et ? "ET" : "LT") << endl;
+    bool async_log = atoi(argv[3]) ? true : false;
+
+    // 初始化日志
+    if (async_log) {
+        Log::get_instance()->init("ServerLog", 8192, 800000, 10);  // 异步日志模型
+    } else {
+        Log::get_instance()->init("ServerLog", 8192, 800000, 0);  // 同步日志模型
+    }
+    cout << "端口号: " << port << ", EPOLL模式: " << (et ? "ET" : "LT")
+         << ", 日志模式: " << (async_log ? "异步日志" : "同步日志") << endl;
+
     // 对SIGPIPE信号进行处理  忽略它
     // 这是因为，对一个已经关闭了的socket进行写入时，内核就会发出SIGPIPE信号，终止程序
     // 我们不希望程序异常终止，故忽略它
@@ -95,7 +107,9 @@ int main(int argc, char *argv[]) {
     threadpool<http_conn> *pool = NULL;
     try {
         pool = new threadpool<http_conn>;
-    } catch (...) { exit(-1); }
+    } catch (...) {
+        exit(-1);
+    }
 
     // 创建数组保存连接客户的信息
     http_conn *users = new http_conn[MAX_FD];

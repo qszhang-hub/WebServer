@@ -87,7 +87,7 @@ bool Log::init(const char *file_name, int log_buf_size, int max_lines, int max_q
 void Log::write_log(LOGLEVEL level, const char *format, ...) {
     // 获取当前时间
     struct timeval now = {0, 0};
-    gettimeofday(&now, NULL);
+    gettimeofday(&now, nullptr);
     time_t t = now.tv_sec;
     struct tm *sys_tm = localtime(&t);
     struct tm my_tm = *sys_tm;
@@ -111,7 +111,7 @@ void Log::write_log(LOGLEVEL level, const char *format, ...) {
         fclose(m_fp);
         char tail[16] = {0};
 
-        // tail: "2023_03_15"
+        // tail: "2023_03_15_"
         snprintf(tail, 16, "%d_%02d_%02d_", my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday);
         // 新的一天，开启新的日志
         if (m_today != my_tm.tm_mday) {
@@ -122,9 +122,9 @@ void Log::write_log(LOGLEVEL level, const char *format, ...) {
         }
         // 今天的日志已满
         else {
-            // new_log: "dir_name2023_03_15log_name.1"
+            // new_log: "dir_name2023_03_15log_name_1"
             // 其中.1是代表今天的日志文件下标
-            snprintf(new_log, 255, "%s%s%s.%lld", dir_name, tail, log_name, m_lines / m_max_lines);
+            snprintf(new_log, 255, "%s%s%s_%lld", dir_name, tail, log_name, m_lines / m_max_lines);
         }
         m_fp = fopen(new_log, "a");
     }
@@ -144,7 +144,6 @@ void Log::write_log(LOGLEVEL level, const char *format, ...) {
                      now.tv_usec, s);
     // m_buf: "2023-03-15 12:47:03.μs [debug]:close fd"
     int m = vsnprintf(m_buf + n, m_log_buf_size - 1, format, valst);
-    va_end(valst);
 
     // 设置换行符和字符串终止符
     m_buf[n + m] = '\n';
@@ -163,6 +162,7 @@ void Log::write_log(LOGLEVEL level, const char *format, ...) {
         fputs(log_str.c_str(), m_fp);
         m_lock.unlock();
     }
+    va_end(valst);
 }
 
 void Log::flush(void) {
