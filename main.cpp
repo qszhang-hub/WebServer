@@ -18,10 +18,6 @@
 #include "lst_timer.h"
 #include "threadpool.h"
 
-// 日志系统设置，同步或异步
-#define ASYNC_LOG
-#define SYNC_LOG
-
 #define MAX_FD 65535         // 最大的文件描述符个数
 #define MAX_EVENT_NUM 10000  // 一次监听最大的事件数量
 #define TIMESLOT 5           // 定时间隔5s
