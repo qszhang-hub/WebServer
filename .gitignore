@@ -2,3 +2,5 @@
 /.vscode
 /.cache
 /CMakeLists.txt
+/server
+/*_ServerLog
